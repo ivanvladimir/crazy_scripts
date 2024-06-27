@@ -81,6 +81,7 @@ results = (
     .execute()
 )
 mails = results.get("messages", [])
+jobs = {}
 
 for mail in mails:
     msg = service.users().messages().get(userId="me", id=mail["id"]).execute()
@@ -111,15 +112,14 @@ for mail in mails:
         elif mimeType == "text/html":
             body_html = base64.urlsafe_b64decode(data)
             selector = Selector(text=str(body_html, "utf-8"))
-            jobs = []
             for row in selector.xpath('//table[contains(@role, "presentation")]'):
                 # title
                 title = row.xpath('tbody/tr/td[contains(@class, "pb-0")]')
                 if not title:
                     continue
-                jobs.append({})
-                jobs[-1]["description"] = title.xpath("a/text()").get(0).strip()
-                jobs[-1]["url"] = (
+                job = {}
+                job["description"] = title.xpath("a/text()").get(0).strip()
+                job["url"] = (
                     title.xpath("a/@href")
                     .get()
                     .strip()
@@ -128,10 +128,11 @@ for mail in mails:
                 )
                 # Extra
                 extra = row.xpath('tbody/tr/td[contains(@class, "pb-0")]')
-                jobs[-1]["place"] = extra.xpath("p/text()").get(1).strip()
+                job["place"] = extra.xpath("p/text()").get(1).strip()
+                jobs[job["url"]] = job
 
 lines = []
-for job in jobs:
+for url, job in jobs.items():
     lines.append(f"* {job['description']}, {job['place']}:  {job['url']}")
 
 md = Markdown("\n".join(lines))
